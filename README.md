@@ -73,7 +73,7 @@ MySQLAudit_CL
 ```kql
 // Filtering Queries
 let MyDevice = "corp-sql-server1"; // set your own device name
-let ServerVulnerableDateTime = todatetime("2026-09-03T19:48:06.1427846Z);
+let ServerVulnerableDateTime = todatetime("2026-09-03T19:48:06.1427846Z");
 MySQLAudit_CL
 | where TimeGenerated > ServerVulnerableDateTime
 | where RawData has "Query"
@@ -89,7 +89,7 @@ MySQLAudit_CL
 
 ```kql
 // Virtual Machine Logons
-let MyDevice = "corp-sql-server1"; // MDE Truncates/cuts off the device name
+let MyDevice = "corp-sql-server"; // MDE Truncates/cuts off the device name
 let ServerVulnerableDateTime = todatetime("2026-09-03T19:48:06.1427846Z");
 DeviceLogonEvents
 | where TimeGenerated > ServerVulnerableDateTime
@@ -106,10 +106,9 @@ A couple of hard-won KQL lessons baked into these queries:
 **Confirmed ransomware deployment with anti-forensic destruction.** On Sep 2, 09:44 AM, an attacker at `64.89.163.141` inserted two distinct ransom notes into a decoy database, then revoked its own privileges, purged the binary logs, and shut down the MySQL service — a deliberate attempt to destroy the audit trail.
 
 ```kql
-let MyDevice = "corp-sql-server1";
-MySQLAudit_CL_Queries
-| where DeviceName == MyDevice
-| where Query has_any ("DROP DATABASE","REVOKE","PURGE BINARY","RESET MASTER","SHUTDOWN","RECOVER_YOUR_DATA")
+MySQLAudit_CL
+| where _ResourceId has "ae57bf9772592c739fda7618923eaa728a21a45bbc940788c609a16ad8bc2291"
+| where RawData has_any ("DROP DATABASE","REVOKE","PURGE BINARY","RESET MASTER","SHUTDOWN","RECOVER_YOUR_DATA")
 | order by TimeGenerated asc
 ```
 ![Ransomware note and destructive commands](docs/screenshots/01-ransomware-destructive-commands.png)
@@ -119,10 +118,11 @@ MySQLAudit_CL_Queries
 **Attributed the attack to a specific source IP through thread-ID correlation**, not just timing proximity — cross-referencing the auth log's connection thread against the query log's thread confirmed `64.89.163.141` as the session that ran the ransomware.
 
 ```kql
-MySQLAudit_CL_Auth
+MySQLAudit_CL
+| where _ResourceId has "ae57bf9772592c739fda7618923eaa728a21a45bbc940788c609a16ad8bc2291"
 | where TimeGenerated between (datetime(2026-09-02T09:40:00Z) .. datetime(2026-09-02T09:45:00Z))
-| where ActionType == "LogonSuccess"
-| project TimeGenerated, IpAddress, Username, RawData
+| where RawData has "Connect" and RawData !has "Access denied"
+| project TimeGenerated, RawData
 | order by TimeGenerated asc
 ```
 ![Ransomware session attributed to source IP via thread ID](docs/screenshots/02-ransomware-source-ip-attribution.png)
