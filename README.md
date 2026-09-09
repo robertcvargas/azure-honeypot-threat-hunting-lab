@@ -2,7 +2,7 @@
 
 An Azure-hosted MySQL honeypot built to practice detection engineering, log analysis, and DFIR against a live, unscripted breach. Rather than working from a canned dataset, this lab exposed a real database to the internet, captured real attacker activity, and used that traffic to build and tune detection rules in Microsoft Sentinel.
 
-Built on the [lognpacific](https://github.com/joshmadakor1/lognpacific-public) cyber-range platform, then extended with custom detection rules, DFIR analysis, and incident write-ups.
+Built on the lognpacific cyber-range platform, then extended with custom detection rules, DFIR analysis, and incident write-ups.
 
 ## Overview
 
@@ -88,7 +88,3 @@ Comparing raw `Security.evtx` records against `DeviceLogonEvents` showed one IP 
 ## Tools & Stack
 
 `Azure (VMs, NSG, Log Analytics, DCR, Run Command)` · `Microsoft Sentinel` · `Microsoft Defender for Endpoint` · `MySQL` · `KQL`
-
-## Acknowledgment
-
-Built on the [lognpacific](https://github.com/joshmadakor1/lognpacific-public) cyber-range platform by Josh Madakor, with custom detection rules, DFIR analysis, and this write-up as original work on top of that lab environment.
