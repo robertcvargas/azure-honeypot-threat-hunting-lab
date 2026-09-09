@@ -34,23 +34,57 @@ Sentinel analytics rules were tuned to the attack pattern actually observed in t
 - **Alert suppression:** 1 hour
 - **Incident grouping:** all matching events grouped into a single incident over a 1-hour window
 
-Example detection logic (simplified):
+Example detection logic:
 
 ```kql
-// Successful logons to privileged accounts on the honeypot host
-DeviceLogonEvents
-| where DeviceName =~ "corp-sql-server"
-| where AccountName in~ ("administrator", "guest")
-| where ActionType == "LogonSuccess"
-| project Timestamp, DeviceName, AccountName, RemoteIP, LogonType
+// SQL Server
+let MyDevice = "corp-sql-server1";
+let MyTimeframe = todatetime("2026-09-03T19:48:06.1427846Z");
+let FailedConnections =
+MySQLAudit_CL
+| extend RawData = replace_string(RawData, "\t", " ")
+| extend DeviceName = tostring(split(_ResourceId, "/")[-1])
+| where DeviceName == MyDevice
+| where RawData has "Access denied"
+| extend ConnectionId = extract(@"^\S+\s+(\d+)\s+Connect", 1, RawData)
+| distinct ConnectionId;
+MySQLAudit_CL
+| where TimeGenerated > MyTimeframe
+| extend RawData = replace_string(RawData, "\t", " ")
+| extend DeviceName = tostring(split(_ResourceId, "/")[-1])
+| where DeviceName == MyDevice
+| where RawData has "Connect"
+| extend ConnectionId = extract(@"^\S+\s+(\d+)\s+Connect", 1, RawData)
+| extend ActionType =
+    case(
+        RawData has "Access denied", "LogonFailure",
+        ConnectionId in (FailedConnections), "Ignore",
+        "LogonSuccess"
+    )
+| where ActionType != "Ignore"
+| extend RawData = replace_string(RawData, "\t", " ")
+| extend Username = replace_string(tostring(split(tostring(split(RawData,"@")[0]), " ")[-1]), "'", "")
+| extend IpAddress = replace_string(tostring(split(split(RawData,"@")[1], " ")[0]), "'", "")
+| project TimeGenerated, DeviceName, Username, IpAddress, ActionType, RawData
+| order by TimeGenerated desc
+
 ```
 
 ```kql
-// MySQL authentication events scoped to the honeypot resource
+// Filtering Queries
+let MyDevice = "corp-sql-server1"; // set your own device name
+let ServerVulnerableDateTime = todatetime("2026-09-03T19:48:06.1427846Z);
 MySQLAudit_CL
-| where _ResourceId endswith "corp-sql-server1"
-| where Event_class_s =~ "connect"
-| project TimeGenerated, _ResourceId, User_s, Status_s, IP_s
+| where TimeGenerated > ServerVulnerableDateTime
+| where RawData has "Query"
+| extend RawData = replace_string(RawData, "\t", " ")
+| extend DeviceName = tostring(split(_ResourceId, "/")[-1])
+| where DeviceName == MyDevice
+| extend ActionType = "Query"
+| extend Query = split(RawData, "Query")[1]
+| project TimeGenerated, DeviceName, ActionType, Query, RawData
+| order by TimeGenerated desc
+
 ```
 
 ```kql
