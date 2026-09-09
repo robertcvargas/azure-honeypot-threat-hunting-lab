@@ -59,25 +59,60 @@ A couple of hard-won KQL lessons baked into these queries:
 
 ## Investigation & Key Findings
 
-Analysis pulled from six telemetry sources — MySQL auth and query logs, `DeviceLogonEvents`, `DeviceProcessEvents`, `DeviceFileEvents`, and `DeviceRegistryEvents` — along with two MDE live-response DFIR packages compared pre- and post-breach.
+**Confirmed ransomware deployment with anti-forensic destruction.** On Sep 2, 09:44 AM, an attacker at `64.89.163.141` inserted two distinct ransom notes into a decoy database, then revoked its own privileges, purged the binary logs, and shut down the MySQL service — a deliberate attempt to destroy the audit trail.
 
-**Confirmed ransomware deployment**
-Traced a MySQL-targeted ransomware attack originating from `64.89.163.141` (same /24 subnet as a prior incident, suggesting a repeat actor or shared infrastructure). The attacker dropped the database, left two ransom notes with distinct BTC wallet addresses, and ran anti-forensic cleanup (`PURGE BINARY LOGS`, `RESET MASTER`) before issuing a `SHUTDOWN`.
+```kql
+let MyDevice = "corp-sql-server1";
+MySQLAudit_CL_Queries
+| where DeviceName == MyDevice
+| where Query has_any ("DROP DATABASE","REVOKE","PURGE BINARY","RESET MASTER","SHUTDOWN","RECOVER_YOUR_DATA")
+| order by TimeGenerated asc
+```
+![Ransomware note and destructive commands](docs/screenshots/01-ransomware-destructive-commands.png)
 
-**Confirmed interactive RDP compromise**
-Identified a successful interactive RDP logon to the administrator account from `141.98.80.88` at 03:37 AM on Sep 3. No follow-on persistence or destructive activity was found in the available telemetry for this session.
+---
 
-**Commodity credential stuffing**
-Multiple source IPs ran a generic `sa`/`admin`/`root` probe sequence consistent with automated, multi-database scanning tools rather than targeted attacks.
+**Attributed the attack to a specific source IP through thread-ID correlation**, not just timing proximity — cross-referencing the auth log's connection thread against the query log's thread confirmed `64.89.163.141` as the session that ran the ransomware.
 
-**Anomalous non-brute-force session**
-A session from `102.218.58.66` produced roughly 70 rapid, *successful* connections — a pattern distinct from brute-forcing, worth flagging separately rather than folding into the credential-stuffing bucket.
+```kql
+MySQLAudit_CL_Auth
+| where TimeGenerated between (datetime(2026-09-02T09:40:00Z) .. datetime(2026-09-02T09:45:00Z))
+| where ActionType == "LogonSuccess"
+| project TimeGenerated, IpAddress, Username, RawData
+| order by TimeGenerated asc
+```
+![Ransomware session attributed to source IP via thread ID](docs/screenshots/02-ransomware-source-ip-attribution.png)
 
-**New IOC surfaced through DFIR comparison**
-`112.186.10.67` showed a high failed-logon count in the DFIR packages but was completely absent from the standard MDE table exports — only visible by directly comparing the pre/post-breach forensic packages.
+---
 
-**MDE telemetry undersampling**
-Comparing raw `Security.evtx` records against `DeviceLogonEvents` showed one IP with roughly 59x more login attempts in the raw event log than what surfaced in MDE's own table — a reminder that MDE tables alone can significantly undercount attacker activity, and raw DFIR packages are necessary for full fidelity.
+**Confirmed a successful interactive RDP compromise** of the Windows `Administrator` account — a session logged in at 3:37 AM, sat idle/locked for ~9 hours, then was unlocked and actively used through the evening.
+
+```kql
+let MyDevice = "corp-sql-server";
+DeviceLogonEvents
+| where DeviceName == MyDevice
+| where AccountName =~ "administrator"
+| where LogonType in ("RemoteInteractive", "Unlock") or ActionType == "LogonSuccess"
+| project TimeGenerated, RemoteIP, ActionType, LogonType
+| order by TimeGenerated asc
+```
+![Windows RDP compromise detail](docs/screenshots/11-windows-rdp-compromise-detail.png)
+
+---
+
+**Ruled out a false lead instead of reporting it as an attack.** A script cycle downloading and running `portscan.ps1`/`eicar.ps1`/`pwncrypt.ps1` every ~12 minutes initially looked like attacker tooling, but traced back to the course's own cyber-range platform generating training telemetry, not adversary behavior.
+
+```kql
+DeviceProcessEvents
+| where DeviceName == "corp-sql-server"
+| where ProcessCommandLine has_any ("portscan.ps1", "eicar.ps1", "pwncrypt.ps1")
+| project TimeGenerated, FileName, ProcessCommandLine
+```
+![Platform simulation cycle, ruled out as attacker activity](docs/screenshots/13-platform-simulation-cycle.png)
+
+---
+
+A telemetry gap is also worth noting: comparing MDE's `DeviceLogonEvents` table against the raw Windows Security event log (`4625`) showed one attacking IP generating **59x more failed-logon events** in the raw log than what reached the advanced-hunting table. Full IOC lists, ATT&CK mapping, and a scoped list of unresolved questions are in the reports below.
 
 ## Lessons Learned
 
