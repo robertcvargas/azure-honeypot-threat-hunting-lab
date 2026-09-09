@@ -53,6 +53,16 @@ MySQLAudit_CL
 | project TimeGenerated, _ResourceId, User_s, Status_s, IP_s
 ```
 
+```kql
+// Virtual Machine Logons
+let MyDevice = "corp-sql-server1"; // MDE Truncates/cuts off the device name
+let ServerVulnerableDateTime = todatetime("2026-09-03T19:48:06.1427846Z");
+DeviceLogonEvents
+| where TimeGenerated > ServerVulnerableDateTime
+| where DeviceName == MyDevice
+| where AccountName in~ ("administrator", "guest")
+| project TimeGenerated, RemoteIP, AccountName, DeviceName, ActionType, LogonType
+```
 A couple of hard-won KQL lessons baked into these queries:
 - Use `=~` instead of `==` for string comparisons — logging sources are inconsistent about case
 - `endswith` requires the *full* correct suffix (including trailing characters like the `1` in `corp-sql-server1`); `contains` is looser but can mask an underlying naming mismatch instead of catching it
