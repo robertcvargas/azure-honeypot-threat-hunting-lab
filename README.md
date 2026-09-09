@@ -2,7 +2,7 @@
 
 An Azure-hosted MySQL honeypot built to practice detection engineering, log analysis, and DFIR against a live, unscripted breach. Rather than working from a canned dataset, this lab exposed a real database to the internet, captured real attacker activity, and used that traffic to build and tune detection rules in Microsoft Sentinel.
 
-![Alt text describing the image]([https://drive.google.com/file/d/1c-SznDgkq5jJnK0WMBNlbZnqXApOozd6/view?usp=drive_link])
+![Alt text describing the image](https://drive.google.com/uc?export=view&id=1c-SznDgkq5jJnK0WMBNlbZnqXApOozd6)
 
 Built on the lognpacific cyber-range platform, then extended with custom detection rules, DFIR analysis, and incident write-ups.
 
