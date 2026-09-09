@@ -111,7 +111,7 @@ MySQLAudit_CL
 | where RawData has_any ("DROP DATABASE","REVOKE","PURGE BINARY","RESET MASTER","SHUTDOWN","RECOVER_YOUR_DATA")
 | order by TimeGenerated asc
 ```
-![Ransomware note and destructive commands](assets/Ransomware note.png)
+![Ransomware note and destructive commands](assets/Ransomware-note.png)
 
 ---
 
