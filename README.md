@@ -152,7 +152,7 @@ DeviceProcessEvents
 | where ProcessCommandLine has_any ("portscan.ps1", "eicar.ps1", "pwncrypt.ps1")
 | project TimeGenerated, FileName, ProcessCommandLine
 ```
-![Platform simulation cycle, ruled out as attacker activity](docs/screenshots/13-platform-simulation-cycle.png)
+![Platform simulation cycle, ruled out as attacker activity](assets/Platform-Simulation.png)
 
 ---
 
