@@ -125,7 +125,7 @@ MySQLAudit_CL
 | project TimeGenerated, RawData
 | order by TimeGenerated asc
 ```
-![Ransomware session attributed to source IP via thread ID](docs/screenshots/02-ransomware-source-ip-attribution.png)
+![Ransomware session attributed to source IP via thread ID](assets/Ransomeware-session.png)
 
 ---
 
