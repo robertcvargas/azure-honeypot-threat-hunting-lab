@@ -140,7 +140,7 @@ DeviceLogonEvents
 | project TimeGenerated, RemoteIP, ActionType, LogonType
 | order by TimeGenerated asc
 ```
-![Windows RDP compromise detail](docs/screenshots/11-windows-rdp-compromise-detail.png)
+![Windows RDP compromise detail](assets/Windows-RDP.png)
 
 ---
 
