@@ -185,7 +185,8 @@ DeviceLogonEvents
 | project Latitude, Longitude, MapLabel, Attempts, Successes, Failures, TargetedDevices, RemoteIP, Country, City, Accounts
 | order by Successes desc, Attempts desc
 ```
-![Geo Map 1 - Global Auth](assets/Geo-Map-Global-Auth.png)
+![Geo Map 1 - Global Auth](assets/Geo-1.png)
+![Geo Map 2 - Global Auth](assets/Geo-2.png)
 
 Two findings this map corroborated from a completely different angle than the written reports: `112.186.10.67` (South Korea) — the IOC that only surfaced earlier by parsing a raw `.evtx` file — shows up here independently with its full guessed-account list (`vm123`, `sqlserver`, `admin123`...). And `20.124.91.188` guessing accounts like `azureuser`/`student` suggests a generic cloud-VM credential list, not anything targeted at this box specifically.
 
