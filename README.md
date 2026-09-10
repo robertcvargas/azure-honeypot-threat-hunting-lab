@@ -158,6 +158,37 @@ DeviceProcessEvents
 
 A telemetry gap is also worth noting: comparing MDE's `DeviceLogonEvents` table against the raw Windows Security event log (`4625`) showed one attacking IP generating **59x more failed-logon events** in the raw log than what reached the advanced-hunting table. Full IOC lists, ATT&CK mapping, and a scoped list of unresolved questions are in the reports below.
 
+## Geo Map — Global Auth
+
+A Sentinel Workbook mapping every external source IP that hit `DeviceLogonEvents` on the honeypot, scoped strictly to this VM in a shared cyber-range workspace. Bubble size = attempts, color = successful logons — the goal is to make a `LogonSuccess` from an unexpected country immediately visible instead of buried in a table.
+
+```kql
+DeviceLogonEvents
+| where Timestamp {TimeRange}
+| where DeviceName == "corp-sql-server"
+| where RemoteIPType == "Public"
+| where isnotempty(RemoteIP)
+| where LogonType in ("Network", "RemoteInteractive")
+| extend geo = geo_info_from_ip_address(RemoteIP)
+| extend Latitude  = toreal(geo.latitude),
+         Longitude = toreal(geo.longitude),
+         Country   = tostring(geo.country),
+         City      = tostring(geo.city)
+| where isnotempty(Latitude) and isnotempty(Longitude)
+| summarize Attempts        = count(),
+            Successes       = countif(ActionType == "LogonSuccess"),
+            Failures        = countif(ActionType == "LogonFailed"),
+            TargetedDevices = dcount(DeviceName),
+            Accounts        = make_set(AccountName, 25)
+         by RemoteIP, Country, City, Latitude, Longitude
+| extend MapLabel = strcat(RemoteIP, " (", Country, ") — ", Successes, " success / ", Attempts, " total")
+| project Latitude, Longitude, MapLabel, Attempts, Successes, Failures, TargetedDevices, RemoteIP, Country, City, Accounts
+| order by Successes desc, Attempts desc
+```
+![Geo Map 1 - Global Auth](assets/Geo-Map-Global-Auth.png)
+
+Two findings this map corroborated from a completely different angle than the written reports: `112.186.10.67` (South Korea) — the IOC that only surfaced earlier by parsing a raw `.evtx` file — shows up here independently with its full guessed-account list (`vm123`, `sqlserver`, `admin123`...). And `20.124.91.188` guessing accounts like `azureuser`/`student` suggests a generic cloud-VM credential list, not anything targeted at this box specifically.
+
 ## Lessons Learned
 
 - Always verify hostname/resource-name mapping empirically rather than assuming consistency across log sources
